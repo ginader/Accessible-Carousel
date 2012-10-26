@@ -12,33 +12,39 @@
  * http://www.opensource.org/licenses/mit-license.php
  * http://www.gnu.org/licenses/gpl.html
  *
- * Version: 1.1
+ * Version: 1.2
  * 
  * History:
  * * 1.0 initial release
  * * 1.1 new features
  * * * new option "animation"
  * * * new option "updateElementText"
+ * * 1.2 new feature
+ * * * use CSS3 transitions when available for better performance
  */
 (function($) {
-    var debugMode = true;
+    var debugMode = false;
     $.fn.extend({
         accessibleCarousel: function(config) {
             var o = this;
-            debug('accessibleNavigation');
+            debug('accessibleCarousel');
             o.items = []; // contains all item LIs when found
             o.positions = []; // contains the left position of the item LIs
             o.remoteItems = [];
             o.timeout = null;
             o.currentItemIndex = 0;
+            o.useTransitions = !!(window.Modernizr && window.Modernizr.csstransitions); // needs Modernizr to detect support
             o.options = $.extend({
                 remote: null, // (optional) valid jQuery Selector that defines a list that can remote control the carousel display
                 autoRotate:false, // (optional) boolean to define that the carousel should change its display by itself (slideshow)
-                rotateWaitTime: 3000, // (optional) number of miliseconds to wait on one display during autoRotate
-                startIndex:0, //(optional) number starting with 0 to define which of the availabe items to show at start
-                updateElementLink: null, // (optional) valid jQuery Selector of an element which href attibut should be updated with the one of the active element. If not <a> element it will be wrapped in one
-                updateElementText: null, // (optional) valid jQuery Selector of an element which content should be updated with the Text of the active carusel item. If active item is an image the alt text will be used.
-                animation:'slide' // Defines the way the widget is animated. Either "blend" or "slide"(default)
+                rotateWaitTime: 3000, // (optional) number of milliseconds to wait on one display during autoRotate
+                startIndex:0, //(optional) number starting with 0 to define which of the available items to show at start
+                updateElementLink: null, // (optional) valid jQuery Selector of an element which href attribute should be updated with the one of the active element. If not <a> element it will be wrapped in one
+                updateElementText: null, // (optional) valid jQuery Selector of an element which content should be updated with the Text of the active carousel item. If active item is an image the alt text will be used.
+                animation:'slide', // Defines the way the widget is animated. Either "blend" or "slide"(default)
+                animationSpeed:300, // Defines the time (in milliseconds) the animation takes to switch between the items
+                animationEasing:'ease-out' // defines the animation function used to animate must be valid for CSS3 and jQuery
+                // TODO: find a way to unify the easing names between jQuery and CSS to make prop "animationEasing" work
             }, config);
 
 
@@ -49,6 +55,12 @@
                     o.positions[i] = px;
                     px += o.items.width();
                 });
+                if(o.useTransitions){
+                    o.transform = Modernizr.prefixed('transform');
+                    $(list).css(o.transform,'translateX(0)');
+                    $(list).css(Modernizr.prefixed('transition'),'all '+(o.options.animationSpeed/1000)+'s '+o.options.animationEasing);
+                }
+
                 o.showItem(o.options.startIndex,list,true)
                 if(o.options.remote){
                     o.setupRemote(list);
@@ -89,6 +101,7 @@
                 var lastIndex = o.currentItemIndex;
                 o.currentItemIndex = index;
                 var position = '-'+o.positions[index]+'px';
+                debug('position:');
                 debug(position);
                 if(o.options.remote){
                     o.updateRemote(index);
@@ -133,9 +146,14 @@
                         $(list).css('margin-left',position);
                         return;
                     }
+                    if(o.useTransitions){
+                        debug('showItem using transitions');
+                        $(list).css(o.transform,'translateX('+position+')');
+                        return;
+                    }
                     $(list).stop().animate({
                         marginLeft: position
-                    }, 1000, 'easeOutQuad' );
+                    }, o.animationSpeed, 'easeOutQuart' );
                 }
                 
             };
